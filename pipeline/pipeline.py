@@ -34,13 +34,20 @@ def check_compliance(prompt: str) -> list[str]:
 
 
 def format_agent_instruction(prompt: str, mode: str = "image", shot_id: str = "V01") -> str:
-    """Format raw prompt into natural language instructions for Google Flow Agent."""
-    is_video = "vid" in mode.lower() or "视" in mode
-    if is_video:
-        prefix = f"请为分镜[{shot_id}]生成一段电影质感的高清视频：\n"
+    """Format raw prompt into Title: VXX。[...] convention for Google Flow Agent and Card naming."""
+    clean_prompt = prompt.strip()
+    # If prompt already follows the Title: VXX。[...] syntax, respect it directly
+    if clean_prompt.startswith("Title:"):
+        return clean_prompt
+
+    # Strip existing outer brackets if any
+    if clean_prompt.startswith("[") and clean_prompt.endswith("]"):
+        inner_content = clean_prompt[1:-1].strip()
     else:
-        prefix = f"请使用 Nano Banana 2 为分镜[{shot_id}]生成一张高清概念图：\n"
-    return f"{prefix}{prompt}"
+        inner_content = clean_prompt
+
+    # Standard Google Flow Card Naming & Agent Prompt Syntax
+    return f"Title: {shot_id}。[{inner_content}]"
 
 
 def dispatch_prompt(

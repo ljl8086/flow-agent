@@ -66,8 +66,11 @@ go build -o ../bin/flow-agent main.go
 ### 3. 执行分镜提示词自动化注入
 
 ```bash
-# 提交分镜生图/生视频任务
-python3 pipeline/pipeline.py --shot-id "V01" --prompt "[V01-神农尝百草] 远古洪荒，神农手持木杖立于山巅，晨雾弥漫，电影级质感"
+# 提交分镜生图任务（遵循 Title: VXX。[提示词] 规范控制 Google Flow 节点命名）
+python3 pipeline/pipeline.py --shot-id "V01" --agent --prompt "特写镜头，神农在晨光中仔细端详手中的一株散发微光的金色草药..."
+
+# 显式使用 Title 格式的完整史诗分镜
+python3 pipeline/pipeline.py --shot-id "V01" --agent --prompt "Title: V01。[特写镜头，神农在晨光中仔细端详草药...【视听底座】35mm电影宽银幕镜头质感...]"
 
 # 仅填入提示词供肉眼预览（不自动点击生成）
 python3 pipeline/pipeline.py --shot-id "V01" --prompt "测试文字" --no-submit
@@ -75,6 +78,12 @@ python3 pipeline/pipeline.py --shot-id "V01" --prompt "测试文字" --no-submit
 # 静默下载生成好的媒体并指定文件名
 python3 pipeline/pipeline.py --shot-id "V01" --download-url "https://..." --output-name "V01-0.jpeg"
 ```
+
+### 4. 命名规范与画布管理 (Canvas Naming Standard)
+
+Google Flow 画布支持通过开头声明 **`Title: <镜头编号>。[<分镜详细提示词>]`** 精确控制生成卡片节点名称，实现自动化流水线节点与影视工程资产（如 `V01-0.jpeg`）的 1:1 严格对齐：
+- **格式标准**：`Title: VXX。[主体动作、构图机位、视听底座、角色资产与负向约束]`
+- **自动化支持**：`pipeline.py` 在开启 `--agent` 时会自动检测并规范化为 `Title: VXX。[...]` 结构。
 
 ---
 
