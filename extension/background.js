@@ -124,6 +124,18 @@ async function handleCommand(cmd) {
         conflictAction: 'overwrite'
       });
       sendCallback({ id, status: 200, result: { download_id: downloadId, filename } });
+    } else if (method === 'scan_canvas') {
+      const tabs = await chrome.tabs.query({ url: FLOW_URLS });
+      if (!tabs || tabs.length === 0) {
+        sendCallback({ id, status: 404, error: 'NO_ACTIVE_FLOW_TAB' });
+        return;
+      }
+      try {
+        const res = await chrome.tabs.sendMessage(tabs[0].id, { type: 'SCAN_CANVAS_MEDIA' });
+        sendCallback({ id, status: 200, result: res });
+      } catch (e) {
+        sendCallback({ id, status: 500, error: e?.message || 'SCAN_FAILED' });
+      }
     } else {
       sendCallback({ id, status: 400, error: `UNKNOWN_METHOD: ${method}` });
     }

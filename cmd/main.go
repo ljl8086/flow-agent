@@ -71,8 +71,10 @@ func (s *BridgeServer) handleWS(w http.ResponseWriter, r *http.Request) {
 	for {
 		var raw map[string]any
 		if err := c.ReadJSON(&raw); err != nil {
+			log.Printf("[Bridge] WS Read error: %v", err)
 			break
 		}
+		log.Printf("[Bridge] WS Received message: %v", raw)
 		reqID, _ := raw["id"].(string)
 		if reqID != "" {
 			s.mu.RLock()
@@ -219,6 +221,30 @@ func (s *BridgeServer) handleDownload(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (s *BridgeServer) handleScanMedia(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	if r.Method == http.MethodOptions {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+
+	cb, err := s.SendCommand(ctx, "scan_canvas", nil)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err.Error()), http.StatusBadGateway)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"ok":     true,
+		"status": cb.Status,
+		"result": cb.Result,
+	})
+}
+
 func (s *BridgeServer) handleHealth(w http.ResponseWriter, r *http.Request) {
 	s.mu.RLock()
 	connected := s.conn != nil
@@ -233,6 +259,34 @@ func (s *BridgeServer) handleHealth(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (s *BridgeServer) handleExtCallback(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	if r.Method == http.MethodOptions {
+		return
+	}
+
+	var cb Callback
+	if err := json.NewDecoder(r.Body).Decode(&cb); err != nil {
+		http.Error(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
+		return
+	}
+
+	if cb.ID != "" {
+		s.mu.RLock()
+		ch, ok := s.pending[cb.ID]
+		s.mu.RUnlock()
+		if ok {
+			select {
+			case ch <- &cb:
+			default:
+			}
+		}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{"ok": true})
+}
+
 func main() {
 	port := flag.Int("port", 8001, "Port to listen on")
 	host := flag.String("host", "127.0.0.1", "Host interface")
@@ -243,8 +297,10 @@ func main() {
 	mux.HandleFunc("/ws", server.handleWS)
 	mux.HandleFunc("/health", server.handleHealth)
 	mux.HandleFunc("/v1/status", server.handleHealth)
+	mux.HandleFunc("/api/ext/callback", server.handleExtCallback)
 	mux.HandleFunc("/v1/dispatch_prompt", server.handleDispatchPrompt)
 	mux.HandleFunc("/v1/download_media", server.handleDownload)
+	mux.HandleFunc("/v1/scan_media", server.handleScanMedia)
 
 	addr := fmt.Sprintf("%s:%d", *host, *port)
 	log.Printf("=====================================================")
