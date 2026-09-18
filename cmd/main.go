@@ -148,6 +148,7 @@ func (s *BridgeServer) handleDispatchPrompt(w http.ResponseWriter, r *http.Reque
 		Prompt     string `json:"prompt"`
 		AutoSubmit bool   `json:"auto_submit"`
 		ShotID     string `json:"shot_id"`
+		Mode       string `json:"mode"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
@@ -161,6 +162,7 @@ func (s *BridgeServer) handleDispatchPrompt(w http.ResponseWriter, r *http.Reque
 		"prompt":      req.Prompt,
 		"auto_submit": req.AutoSubmit,
 		"shot_id":     req.ShotID,
+		"mode":        req.Mode,
 	})
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err.Error()), http.StatusBadGateway)

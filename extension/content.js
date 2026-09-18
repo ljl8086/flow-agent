@@ -183,11 +183,58 @@
     element.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
   }
 
+  function switchModeIfNeeded(targetMode) {
+    if (!targetMode) return;
+    const modeStr = targetMode.toLowerCase(); // 'image' or 'video'
+    const isImageTarget = modeStr.includes('image') || modeStr.includes('img') || modeStr.includes('图');
+    const isVideoTarget = modeStr.includes('video') || modeStr.includes('vid') || modeStr.includes('视频');
+
+    const pills = Array.from(document.querySelectorAll('button, [role="button"]')).filter(b => {
+      const txt = (b.textContent || '').trim();
+      const rect = b.getBoundingClientRect();
+      return (txt.includes('视频') || txt.includes('Nano Banana') || txt.includes('图片') || txt.includes('Imagen')) &&
+             rect.top > window.innerHeight * 0.5 && b.offsetWidth > 0;
+    });
+
+    if (pills.length === 0) return;
+    const currentPill = pills[0];
+    const currentTxt = currentPill.textContent || '';
+    const isCurrentlyVideo = currentTxt.includes('视频');
+    const isCurrentlyImage = currentTxt.includes('Nano Banana') || currentTxt.includes('图片') || currentTxt.includes('Imagen');
+
+    if ((isImageTarget && isCurrentlyImage) || (isVideoTarget && isCurrentlyVideo)) {
+      return; // Already in correct mode
+    }
+
+    // Click pill to open model/mode selection menu
+    robustClick(currentPill);
+
+    // Wait and select the target item from dropdown/menu
+    setTimeout(() => {
+      const menuItems = Array.from(document.querySelectorAll('[role="menuitem"], [role="option"], button, div[class*="item"]')).filter(
+        el => el.offsetWidth > 0 && el.offsetHeight > 0
+      );
+      const targetItem = menuItems.find(el => {
+        const txt = (el.textContent || '').trim();
+        return isImageTarget ? (txt.includes('图片') || txt.includes('Nano Banana') || txt.includes('Image')) : (txt.includes('视频') || txt.includes('Video'));
+      });
+      if (targetItem) {
+        robustClick(targetItem);
+      }
+    }, 200);
+  }
+
   chrome.runtime.onMessage.addListener((msg, _, reply) => {
     if (msg.type === 'INJECT_PROMPT') {
       const prompt = msg.prompt || '';
       const autoSubmit = !!msg.auto_submit;
       const shotId = msg.shot_id || '当前分镜';
+      const targetMode = msg.mode || '';
+
+      // Auto switch to Image or Video mode if requested
+      if (targetMode) {
+        switchModeIfNeeded(targetMode);
+      }
 
       const input = findPromptInput();
       if (!input) {

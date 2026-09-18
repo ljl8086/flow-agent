@@ -33,13 +33,14 @@ def check_compliance(prompt: str) -> list[str]:
     return warnings
 
 
-def dispatch_prompt(prompt: str, shot_id: str = "V01", auto_submit: bool = True, bridge_url: str = DEFAULT_BRIDGE_URL) -> Dict[str, Any]:
+def dispatch_prompt(prompt: str, shot_id: str = "V01", mode: str = "image", auto_submit: bool = True, bridge_url: str = DEFAULT_BRIDGE_URL) -> Dict[str, Any]:
     """Dispatch prompt directly into Google Flow active tab via Flow Agent Daemon."""
     warnings = check_compliance(prompt)
     payload = json.dumps({
         "prompt": prompt,
         "auto_submit": auto_submit,
-        "shot_id": shot_id
+        "shot_id": shot_id,
+        "mode": mode
     }).encode("utf-8")
 
     req = urllib.request.Request(
@@ -86,6 +87,7 @@ def main():
     parser.add_argument("--no-submit", action="store_true", help="Only inject without clicking submit")
     parser.add_argument("--download-url", help="Media URL to download via browser extension")
     parser.add_argument("--output-name", help="Custom filename for downloaded asset")
+    parser.add_argument("--mode", choices=["image", "video"], default="image", help="Target creation mode: image or video")
     parser.add_argument("--bridge", default=DEFAULT_BRIDGE_URL, help="Bridge daemon endpoint")
 
     args = parser.parse_args()
@@ -100,10 +102,11 @@ def main():
     if not args.prompt:
         parser.error("--prompt is required when not downloading")
 
-    print(f">> Dispatching prompt for [{args.shot_id}] via Flow Agent Bridge...")
+    print(f">> Dispatching [{args.mode}] prompt for [{args.shot_id}] via Flow Agent Bridge...")
     res = dispatch_prompt(
         prompt=args.prompt,
         shot_id=args.shot_id,
+        mode=args.mode,
         auto_submit=not args.no_submit,
         bridge_url=args.bridge
     )
