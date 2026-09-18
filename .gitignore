@@ -1,0 +1,22 @@
+# Binaries
+bin/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Go build artifacts
+*.test
+*.out
+go.work
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# OS and IDE files
+.DS_Store
+.vscode/
+.idea/
+*.log
