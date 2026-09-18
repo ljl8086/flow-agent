@@ -33,14 +33,34 @@ def check_compliance(prompt: str) -> list[str]:
     return warnings
 
 
-def dispatch_prompt(prompt: str, shot_id: str = "V01", mode: str = "image", auto_submit: bool = True, bridge_url: str = DEFAULT_BRIDGE_URL) -> Dict[str, Any]:
+def format_agent_instruction(prompt: str, mode: str = "image", shot_id: str = "V01") -> str:
+    """Format raw prompt into natural language instructions for Google Flow Agent."""
+    is_video = "vid" in mode.lower() or "视" in mode
+    if is_video:
+        prefix = f"请为分镜[{shot_id}]生成一段电影质感的高清视频：\n"
+    else:
+        prefix = f"请使用 Nano Banana 2 为分镜[{shot_id}]生成一张高清概念图：\n"
+    return f"{prefix}{prompt}"
+
+
+def dispatch_prompt(
+    prompt: str,
+    shot_id: str = "V01",
+    mode: str = "image",
+    agent: bool = False,
+    auto_submit: bool = True,
+    bridge_url: str = DEFAULT_BRIDGE_URL
+) -> Dict[str, Any]:
     """Dispatch prompt directly into Google Flow active tab via Flow Agent Daemon."""
     warnings = check_compliance(prompt)
+    final_prompt = format_agent_instruction(prompt, mode, shot_id) if agent else prompt
+
     payload = json.dumps({
-        "prompt": prompt,
+        "prompt": final_prompt,
         "auto_submit": auto_submit,
         "shot_id": shot_id,
-        "mode": mode
+        "mode": mode,
+        "agent": agent
     }).encode("utf-8")
 
     req = urllib.request.Request(
@@ -54,6 +74,7 @@ def dispatch_prompt(prompt: str, shot_id: str = "V01", mode: str = "image", auto
         with urllib.request.urlopen(req, timeout=20) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             data["warnings"] = warnings
+            data["agent_mode"] = agent
             return data
     except Exception as e:
         return {"ok": False, "error": str(e), "warnings": warnings}
@@ -88,6 +109,7 @@ def main():
     parser.add_argument("--download-url", help="Media URL to download via browser extension")
     parser.add_argument("--output-name", help="Custom filename for downloaded asset")
     parser.add_argument("--mode", choices=["image", "video"], default="image", help="Target creation mode: image or video")
+    parser.add_argument("--agent", action="store_true", help="Use Google Flow Native Agent mode (natural language intent control)")
     parser.add_argument("--bridge", default=DEFAULT_BRIDGE_URL, help="Bridge daemon endpoint")
 
     args = parser.parse_args()
@@ -102,15 +124,16 @@ def main():
     if not args.prompt:
         parser.error("--prompt is required when not downloading")
 
-    print(f">> Dispatching [{args.mode}] prompt for [{args.shot_id}] via Flow Agent Bridge...")
+    mode_label = f"{args.mode} (Agent Mode 智能体)" if args.agent else args.mode
+    print(f">> Dispatching storyboard [{args.shot_id}] ({mode_label}) to Flow...")
     res = dispatch_prompt(
         prompt=args.prompt,
         shot_id=args.shot_id,
         mode=args.mode,
+        agent=args.agent,
         auto_submit=not args.no_submit,
         bridge_url=args.bridge
     )
-    print("\nDispatch Result:")
     print(json.dumps(res, indent=2, ensure_ascii=False))
 
 

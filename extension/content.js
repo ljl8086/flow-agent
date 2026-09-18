@@ -183,6 +183,36 @@
     element.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
   }
 
+  // Activate Google Flow Native Agent mode if requested
+  function enableAgentModeIfNeeded(useAgent) {
+    if (!useAgent) return false;
+
+    // Search for the [智能体] or [Agent] button in the bottom dock area
+    const buttons = Array.from(document.querySelectorAll('button, [role="button"]')).filter(b => {
+      const rect = b.getBoundingClientRect();
+      const txt = (b.textContent || '').trim();
+      const aria = (b.getAttribute('aria-label') || '').toLowerCase();
+      return rect.top > window.innerHeight * 0.5 && b.offsetWidth > 0 &&
+             (txt.includes('智能体') || txt.toLowerCase().includes('agent') || aria.includes('智能体') || aria.includes('agent'));
+    });
+
+    if (buttons.length === 0) return false;
+    const agentBtn = buttons[0];
+
+    // Check if already active
+    const isPressed = agentBtn.getAttribute('aria-pressed') === 'true' ||
+                      agentBtn.getAttribute('aria-checked') === 'true' ||
+                      agentBtn.classList.contains('active') ||
+                      agentBtn.classList.contains('selected') ||
+                      agentBtn.dataset.active === 'true';
+
+    if (!isPressed) {
+      robustClick(agentBtn);
+      return true;
+    }
+    return true;
+  }
+
   function switchModeIfNeeded(targetMode) {
     if (!targetMode) return;
     const modeStr = targetMode.toLowerCase(); // 'image' or 'video'
@@ -230,9 +260,13 @@
       const autoSubmit = !!msg.auto_submit;
       const shotId = msg.shot_id || '当前分镜';
       const targetMode = msg.mode || '';
+      const useAgent = !!msg.agent;
 
-      // Auto switch to Image or Video mode if requested
-      if (targetMode) {
+      // Check and activate Google Flow Agent mode if requested
+      if (useAgent) {
+        enableAgentModeIfNeeded(true);
+      } else if (targetMode) {
+        // Otherwise switch traditional mode if specified
         switchModeIfNeeded(targetMode);
       }
 
@@ -247,7 +281,7 @@
       setNativeValue(input, prompt);
 
       if (autoSubmit) {
-        showAgentToast(`[Flow Agent]: 已填入 ${shotId} 提示词，正在点击生成...`, true);
+        showAgentToast(`[Flow Agent]: 已填入 ${shotId} ${useAgent ? '智能体指令' : '提示词'}，正在点击生成...`, true);
         setTimeout(() => {
           const btn = findSubmitButton(input);
           let btnInfo = null;

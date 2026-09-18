@@ -79,7 +79,7 @@ async function handleCommand(cmd) {
 
   try {
     if (method === 'inject_prompt') {
-      const { prompt, auto_submit = true, shot_id = '', mode = '' } = params || {};
+      const { prompt, auto_submit = true, shot_id = '', mode = '', agent = false } = params || {};
       const tabs = await chrome.tabs.query({ url: FLOW_URLS });
       if (!tabs || tabs.length === 0) {
         sendCallback({ id, status: 404, error: 'NO_ACTIVE_FLOW_TAB' });
@@ -91,7 +91,8 @@ async function handleCommand(cmd) {
           prompt,
           auto_submit,
           shot_id,
-          mode
+          mode,
+          agent
         });
         sendCallback({ id, status: res?.status || 200, result: res });
       } catch (tabErr) {
@@ -105,7 +106,8 @@ async function handleCommand(cmd) {
           prompt,
           auto_submit,
           shot_id,
-          mode
+          mode,
+          agent
         });
         sendCallback({ id, status: res?.status || 200, result: res });
       }
